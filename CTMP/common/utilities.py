@@ -7,6 +7,7 @@ from sklearn.model_selection import StratifiedKFold
 import warnings
 warnings.filterwarnings("ignore")
 
+#
 def read_data(filename):
     wordids = list()
     wordcts = list()
