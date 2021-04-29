@@ -47,38 +47,38 @@ class MyCTMP:
         self.shp = np.ones((self.user_size, self.num_topics)) * self.e
         self.rte = np.ones((self.user_size, self.num_topics)) * self.f
 
-    # def get_phi(self):
-    #     """ Click to read description
-    #
-    #     As we know Φ(phi) has shape of (user_size, num_docs, num_topics)
-    #     which is 3D matrix of shape=(138493, 25900, 50) for ORIGINAL || (1915, 639, 50) for REDUCED
-    #
-    #     For ORIGINAL data, it is not possible(memory-wise) to store 3D matrix of shape=(138493, 25900, 50) into single numpy array.
-    #     Therefore, we cut the whole 3D matrix into small chunks of 3D matrix and put them into list and set it as our self.phi
-    #     """
-    #
-    #     block_2D = np.zeros(shape=(self.num_docs, self.num_topics))
-    #
-    #     # Initiate matrix
-    #     phi_matrices = list()
-    #
-    #     # Create small 3D matrices and add them into list
-    #     thousand_block_size = self.user_size // 1000
-    #     phi = np.empty(shape=(1000, self.num_docs, self.num_topics))
-    #     for i in range(1000):
-    #         phi[i, :, :] = block_2D
-    #     for i in range(thousand_block_size):
-    #         phi_matrices.append(phi)
-    #
-    #     # Create last remaining 3D matrix and add it into list
-    #     remaining_block_size = self.user_size % 1000
-    #     phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
-    #     for i in range(remaining_block_size):
-    #         phi[i, :, :] = block_2D
-    #     phi_matrices.append(phi)
-    #
-    #     return phi_matrices
-    #
+    def get_phi(self):
+        """ Click to read description
+
+        As we know Φ(phi) has shape of (user_size, num_docs, num_topics)
+        which is 3D matrix of shape=(138493, 25900, 50) for ORIGINAL || (1915, 639, 50) for REDUCED
+
+        For ORIGINAL data, it is not possible(memory-wise) to store 3D matrix of shape=(138493, 25900, 50) into single numpy array.
+        Therefore, we cut the whole 3D matrix into small chunks of 3D matrix and put them into list and set it as our self.phi
+        """
+
+        block_2D = np.zeros(shape=(self.num_docs, self.num_topics))
+
+        # Initiate matrix
+        phi_matrices = list()
+
+        # Create small 3D matrices and add them into list
+        thousand_block_size = self.user_size // 1000
+        phi = np.empty(shape=(1000, self.num_docs, self.num_topics))
+        for i in range(1000):
+            phi[i, :, :] = block_2D
+        for i in range(thousand_block_size):
+            phi_matrices.append(phi)
+
+        # Create last remaining 3D matrix and add it into list
+        remaining_block_size = self.user_size % 1000
+        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
+        for i in range(remaining_block_size):
+            phi[i, :, :] = block_2D
+        phi_matrices.append(phi)
+
+        return phi_matrices
+
     # def run_EM(self, wordids, wordcts, GLOB_ITER):
     #     """ Click to read more
     #
@@ -91,7 +91,7 @@ class MyCTMP:
     #     self.e_step(wordids, wordcts)
     #     # M - maximization step
     #     self.m_step(wordids, wordcts)
-    #
+
     # def e_step(self, wordids, wordcts):
     #     """ Does e step. Updates theta, mu, pfi, shp, rte for all documents and users"""
     #     # Normalization denominator for mu
