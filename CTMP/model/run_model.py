@@ -29,7 +29,7 @@ def main():
     docs_file = "./CTMP/input-data/docs.txt"
     rating_file = "./CTMP/input-data/df_rating_UPDATED"
     setting_file = "./CTMP/input-data/settings.txt"
-    output_folder = "../output/kaggle/working/"
+    output_folder = "../working/"
 
     # -------------------------------------------- Get Data --------------------------------------------------------
     # Read & write settings into model folder
@@ -37,7 +37,10 @@ def main():
     ddict = utilities.read_setting(setting_file)
     print('write setting ...')
     file_name = f'{output_folder}setting.txt'
+
+    os.chdir("..")
     utilities.write_setting(ddict, file_name)
+    os.chdir("./input/")
 
     wordids, wordcts = utilities.read_data(docs_file)
 
@@ -75,6 +78,7 @@ def main():
     list_tops = utilities.list_top(algo.beta, ddict['tops'])
 
     print("\nsaving the final results.. please wait..")
+    os.chdir("..")
     utilities.write_file(output_folder, list_tops, algo)
 
 
