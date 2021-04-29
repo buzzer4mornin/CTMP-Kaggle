@@ -29,7 +29,7 @@ def main():
     docs_file = "./CTMP/input-data/docs.txt"
     rating_file = "./CTMP/input-data/df_rating_UPDATED"
     setting_file = "./CTMP/input-data/settings.txt"
-    output_folder = "./CTMP/output-data/"
+    output_folder = "../output/kaggle/working/"
 
     # -------------------------------------------- Get Data --------------------------------------------------------
     # Read & write settings into model folder
