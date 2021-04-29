@@ -40,7 +40,7 @@ def main():
 
     os.chdir("..")
     utilities.write_setting(ddict, file_name)
-    os.chdir("./input/")
+    os.chdir("../input/")
 
     wordids, wordcts = utilities.read_data(docs_file)
 
@@ -79,6 +79,7 @@ def main():
 
     print("\nsaving the final results.. please wait..")
     os.chdir("..")
+    output_folder = "../working"
     utilities.write_file(output_folder, list_tops, algo)
 
 
