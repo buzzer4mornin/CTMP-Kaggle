@@ -115,7 +115,7 @@ class MyCTMP:
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
             # update user's shp and rte
-            self.shp[u, :] = self.e + phi_uj_norm[0].sum(axis=0)
+            self.shp[u, :] = self.e + cp.array(phi_uj_norm[0].sum(axis=0))
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
 
