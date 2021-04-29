@@ -13,12 +13,12 @@ from math import floor
 from CTMP import MyCTMP
 from LDA import MyLDA
 
-sys.path.insert(0, './common/')
+sys.path.insert(0, './CTMP/common/')
 import utilities
 
 
 # ------------ RUN in terminal ------------
-# --> python ./model/run_model.py
+# --> python ./CTMP/model/run_model.py
 
 def main():
     # Get environment variables
@@ -26,10 +26,10 @@ def main():
     which_size = "original"
     k_cross_val = 5
 
-    docs_file = "./input-data/docs.txt" if which_size == "original" else "./input-data/docs_REDUCED.txt" if which_size == "reduced" else "./input-data/docs_DIMINISHED.txt"
-    rating_file = "./input-data/df_rating_UPDATED" if which_size == "original" else "./input-data/df_rating_REDUCED" if which_size == "reduced" else "./input-data/df_rating_DIMINISHED"
-    setting_file = "./input-data/settings.txt" if which_size == "original" else "./input-data/settings_REDUCED.txt" if which_size == "reduced" else "./input-data/settings_DIMINISHED.txt"
-    output_folder = "./output-data/"
+    docs_file = "./CTMP/input-data/docs.txt"
+    rating_file = "./CTMP/input-data/df_rating_UPDATED"
+    setting_file = "./CTMP/input-data/settings.txt"
+    output_folder = "./CTMP/output-data/"
 
     # Create model folder if it doesn't exist
     if os.path.exists(output_folder):
@@ -46,10 +46,10 @@ def main():
 
     wordids, wordcts = utilities.read_data(docs_file)
 
-    rating_GroupForUser_train = pickle.load(open("./input-data/rating_GroupForUser_train.pkl", "rb"))
-    rating_GroupForMovie_train = pickle.load(open("./input-data/rating_GroupForMovie_train.pkl", "rb"))
-    rating_GroupForUser_test = pickle.load(open("./input-data/rating_GroupForUser_test.pkl", "rb"))
-    rating_GroupForMovie_test = pickle.load(open("./input-data/rating_GroupForMovie_test.pkl", "rb"))
+    rating_GroupForUser_train = pickle.load(open("./CTMP/input-data/rating_GroupForUser_train.pkl", "rb"))
+    rating_GroupForMovie_train = pickle.load(open("./CTMP/input-data/rating_GroupForMovie_train.pkl", "rb"))
+    rating_GroupForUser_test = pickle.load(open("./CTMP/input-data/rating_GroupForUser_test.pkl", "rb"))
+    rating_GroupForMovie_test = pickle.load(open("./CTMP/input-data/rating_GroupForMovie_test.pkl", "rb"))
 
     # -------------------------------------- Initialize Algorithm --------------------------------------------------
     if which_model == "ctmp":
