@@ -46,8 +46,8 @@ def main():
 
     rating_GroupForUser_train = pickle.load(open("./CTMP/input-data/rating_GroupForUser_train.pkl", "rb"))
     rating_GroupForMovie_train = pickle.load(open("./CTMP/input-data/rating_GroupForMovie_train.pkl", "rb"))
-    rating_GroupForUser_test = pickle.load(open("./CTMP/input-data/rating_GroupForUser_test.pkl", "rb"))
-    rating_GroupForMovie_test = pickle.load(open("./CTMP/input-data/rating_GroupForMovie_test.pkl", "rb"))
+    # rating_GroupForUser_test = pickle.load(open("./CTMP/input-data/rating_GroupForUser_test.pkl", "rb"))
+    # rating_GroupForMovie_test = pickle.load(open("./CTMP/input-data/rating_GroupForMovie_test.pkl", "rb"))
 
     # -------------------------------------- Initialize Algorithm --------------------------------------------------
     if which_model == "ctmp":
