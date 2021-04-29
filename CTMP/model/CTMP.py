@@ -66,8 +66,9 @@ class MyCTMP:
         thousand_block_size = self.user_size // 1000
         phi = np.empty(shape=(1000, self.num_docs, self.num_topics))
 
-        # for i in range(1000):
-        #     phi[i, :, :] = block_2D
+        for i in range(1000):
+             phi[i, :, :] = block_2D
+
         # for i in range(thousand_block_size):
         #     phi_matrices.append(phi)
         #
