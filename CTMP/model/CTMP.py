@@ -71,11 +71,11 @@ class MyCTMP:
             phi_matrices.append(phi)
 
         # Create last remaining 3D matrix and add it into list
-        remaining_block_size = self.user_size % 1000
-        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
-        for i in range(remaining_block_size):
-            phi[i, :, :] = block_2D
-        phi_matrices.append(phi)
+        # remaining_block_size = self.user_size % 1000
+        # phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
+        # for i in range(remaining_block_size):
+        #     phi[i, :, :] = block_2D
+        # phi_matrices.append(phi)
 
         return phi_matrices
 
