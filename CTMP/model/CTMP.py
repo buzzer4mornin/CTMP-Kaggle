@@ -64,18 +64,18 @@ class MyCTMP:
 
         # Create small 3D matrices and add them into list
         thousand_block_size = self.user_size // 1000
-        phi = np.empty(shape=(1000, self.num_docs, self.num_topics))
+        phi = np.empty(shape=(1000, self.num_docs, self.num_topics), dtype=np.float32)
         for i in range(1000):
             phi[i, :, :] = block_2D
         for i in range(thousand_block_size):
             phi_matrices.append(phi)
 
         # Create last remaining 3D matrix and add it into list
-        # remaining_block_size = self.user_size % 1000
-        # phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
-        # for i in range(remaining_block_size):
-        #     phi[i, :, :] = block_2D
-        # phi_matrices.append(phi)
+        remaining_block_size = self.user_size % 1000
+        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=np.float32)
+        for i in range(remaining_block_size):
+            phi[i, :, :] = block_2D
+        phi_matrices.append(phi)
 
         return phi_matrices
 
@@ -117,7 +117,7 @@ class MyCTMP:
             # update user's shp and rte
             self.shp[u, :] = self.e + phi_uj_norm[0].sum(axis=0)
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
-            print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
+            #print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
 
         # UPDATE theta, mu
         # norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
@@ -128,7 +128,7 @@ class MyCTMP:
             mud = self.update_mu(norm_mu, d)
             self.mu[d, :] = mud
 
-            print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
+            #print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
