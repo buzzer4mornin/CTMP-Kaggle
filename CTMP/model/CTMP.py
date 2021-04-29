@@ -69,8 +69,8 @@ class MyCTMP:
         for i in range(1000):
              phi[i, :, :] = block_2D
 
-        # for i in range(thousand_block_size):
-        #     phi_matrices.append(phi)
+        for i in range(thousand_block_size):
+             phi_matrices.append(phi)
         #
         # # Create last remaining 3D matrix and add it into list
         # remaining_block_size = self.user_size % 1000
