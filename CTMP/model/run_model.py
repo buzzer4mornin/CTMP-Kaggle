@@ -31,11 +31,6 @@ def main():
     setting_file = "./CTMP/input-data/settings.txt"
     output_folder = "./CTMP/output-data/"
 
-    # Create model folder if it doesn't exist
-    if os.path.exists(output_folder):
-        shutil.rmtree(output_folder)
-    os.makedirs(output_folder)
-
     # -------------------------------------------- Get Data --------------------------------------------------------
     # Read & write settings into model folder
     print('reading setting ...')
