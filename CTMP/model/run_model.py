@@ -36,7 +36,7 @@ def main():
     print('reading setting ...')
     ddict = utilities.read_setting(setting_file)
     print('write setting ...')
-    file_name = f'{output_folder}/setting.txt'
+    file_name = f'{output_folder}setting.txt'
     utilities.write_setting(ddict, file_name)
 
     wordids, wordcts = utilities.read_data(docs_file)
