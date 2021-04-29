@@ -44,7 +44,7 @@ class MyCTMP:
         self.phi = self.get_phi()
 
         # Initialize shp, rte (user's variational parameters)
-        self.shp = np.ones((self.user_size, self.num_topics)) * self.e
+        self.shp = cp.ones((self.user_size, self.num_topics)) * self.e
         self.rte = cp.ones((self.user_size, self.num_topics)) * self.f
 
     def get_phi(self):
