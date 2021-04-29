@@ -5,7 +5,7 @@ import numpy as np
 from sys import getsizeof
 from scipy import special
 import random
-
+import cupy as cp
 
 class MyCTMP:
     def __init__(self, rating_GroupForUser, rating_GroupForMovie,
@@ -30,22 +30,22 @@ class MyCTMP:
         self.iter_infer = iter_infer
 
         # Get initial beta(topics) which was produced by LDA
-        self.beta = np.load('./CTMP/input-data/CTMP_initial_beta.npy')
+        self.beta = cp.array(np.load('./CTMP/input-data/CTMP_initial_beta.npy'))
 
         # Get initial theta(topic proportions) which was produced by LDA
         # Theta is very sparse, so we decide to use smoothing to avoid having extreme sparse theta,
         # therefore increase other proportions a bit
-        self.theta = np.load('./CTMP/input-data/CTMP_initial_theta.npy')
+        self.theta = cp.array(np.load('./CTMP/input-data/CTMP_initial_theta.npy'))
 
         # Initialize mu (topic offsets)
-        self.mu = np.copy(self.theta)  # + np.random.normal(0, self.lamb, self.theta.shape)
+        self.mu = cp.array(np.copy(self.theta))  # + np.random.normal(0, self.lamb, self.theta.shape)
 
         # Initialize phi (rating's variational parameter)
         self.phi = self.get_phi()
 
         # Initialize shp, rte (user's variational parameters)
-        self.shp = np.ones((self.user_size, self.num_topics)) * self.e
-        self.rte = np.ones((self.user_size, self.num_topics)) * self.f
+        self.shp = cp.ones((self.user_size, self.num_topics)) * self.e
+        self.rte = cp.ones((self.user_size, self.num_topics)) * self.f
 
     def get_phi(self):
         """ Click to read description
@@ -57,14 +57,14 @@ class MyCTMP:
         Therefore, we cut the whole 3D matrix into small chunks of 3D matrix and put them into list and set it as our self.phi
         """
 
-        block_2D = np.zeros(shape=(self.num_docs, self.num_topics))
+        block_2D = cp.zeros(shape=(self.num_docs, self.num_topics))
 
         # Initiate matrix
         phi_matrices = list()
 
         # Create small 3D matrices and add them into list
         thousand_block_size = self.user_size // 1000
-        phi = np.empty(shape=(1000, self.num_docs, self.num_topics), dtype=np.float32)
+        phi = cp.empty(shape=(1000, self.num_docs, self.num_topics), dtype=cp.float32)
         for i in range(1000):
             phi[i, :, :] = block_2D
         for i in range(thousand_block_size):
@@ -72,7 +72,7 @@ class MyCTMP:
 
         # Create last remaining 3D matrix and add it into list
         remaining_block_size = self.user_size % 1000
-        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=np.float32)
+        phi = cp.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=cp.float32)
         for i in range(remaining_block_size):
             phi[i, :, :] = block_2D
         phi_matrices.append(phi)
@@ -95,7 +95,7 @@ class MyCTMP:
     def e_step(self, wordids, wordcts):
         """ Does e step. Updates theta, mu, pfi, shp, rte for all documents and users"""
         # Normalization denominator for mu
-        norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
+        norm_mu = cp.copy((self.shp / self.rte).sum(axis=0))
 
         # UPDATE phi, shp, rte
         for u in range(self.user_size):
@@ -108,9 +108,9 @@ class MyCTMP:
                 continue
 
             # compute Φuj then normalize it
-            phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :]))
+            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - cp.log(self.rte[u, :]))
             phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)
-            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
+            phi_uj_norm = cp.copy(phi_uj) / cp.array(phi_uj_sum[:, np.newaxis])
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
@@ -132,7 +132,7 @@ class MyCTMP:
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
-        mu = np.empty(self.num_topics)
+        mu = cp.empty(self.num_topics)
         mu_users = self.rating_GroupForMovie[d]
 
         def get_phi(x):
@@ -143,12 +143,12 @@ class MyCTMP:
         rating_phi = sum(map(get_phi, mu_users))
 
         if len(mu_users) == 0:
-            mu = np.copy(self.theta[d, :])
+            mu = cp.copy(self.theta[d, :])
         else:
             for k in range(self.num_topics):
                 temp = -1 * norm_mu[k] + self.lamb * self.theta[d, k]
                 delta = temp ** 2 + 4 * self.lamb * rating_phi[k]  # added [k] to rating_phi.
-                mu[k] = (temp + np.sqrt(delta)) / (2 * self.lamb)
+                mu[k] = (temp + cp.sqrt(delta)) / (2 * self.lamb)
             # for k in range(self.num_topics):
             #    mu[k] = rating_phi[k] / norm_mu[k]
         return mu
@@ -175,7 +175,7 @@ class MyCTMP:
         mu = self.mu[d, :]
 
         # x = sum_(k=2)^K theta_k * beta_{kj}
-        x = np.dot(theta, beta)
+        x = cp.dot(theta, beta)
 
         # Parameter of Bernoulli distribution
         # Likelihood vs Prior
@@ -187,50 +187,50 @@ class MyCTMP:
 
         for t in range(1, self.iter_infer):
             # ======== Lower ==========
-            if np.random.rand() < p:
+            if cp.random.rand() < p:
                 T_lower[0] += 1
             else:
                 T_lower[1] += 1
 
-            G_1 = (np.dot(beta, cts / x) + (self.alpha - 1) / theta) / p
+            G_1 = (cp.dot(beta, cts / x) + (self.alpha - 1) / theta) / p
             G_2 = (-1 * self.lamb * (theta - mu)) / (1 - p)
 
             ft_lower = T_lower[0] * G_1 + T_lower[1] * G_2
-            index_lower = np.argmax(ft_lower)
+            index_lower = cp.argmax(ft_lower)
             alpha = 1.0 / (t + 1)
-            theta_lower = np.copy(theta)
+            theta_lower = cp.copy(theta)
             theta_lower *= 1 - alpha
             theta_lower[index_lower] += alpha
 
             # ======== Upper ==========
-            if np.random.rand() < p:
+            if cp.random.rand() < p:
                 T_upper[0] += 1
             else:
                 T_upper[1] += 1
 
             ft_upper = T_upper[0] * G_1 + T_upper[1] * G_2
-            index_upper = np.argmax(ft_upper)
+            index_upper = cp.argmax(ft_upper)
             alpha = 1.0 / (t + 1)
-            theta_upper = np.copy(theta)
+            theta_upper = cp.copy(theta)
             theta_upper *= 1 - alpha
             theta_upper[index_upper] += alpha
             # print(theta_upper - theta_lower)
 
             # ======== Decision ========
-            x_l = np.dot(cts, np.log(np.dot(theta_lower, beta))) + (self.alpha - 1) * np.log(theta_lower) \
-                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_lower - mu), ord=2)) ** 2
-            x_u = np.dot(cts, np.log(np.dot(theta_upper, beta))) + (self.alpha - 1) * np.log(theta_upper) \
-                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_upper - mu), ord=2)) ** 2
+            x_l = cp.dot(cts, cp.log(cp.dot(theta_lower, beta))) + (self.alpha - 1) * cp.log(theta_lower) \
+                  - 1 * (self.lamb / 2) * (cp.linalg.norm((theta_lower - mu), ord=2)) ** 2
+            x_u = cp.dot(cts, cp.log(cp.dot(theta_upper, beta))) + (self.alpha - 1) * cp.log(theta_upper) \
+                  - 1 * (self.lamb / 2) * (cp.linalg.norm((theta_upper - mu), ord=2)) ** 2
 
-            compare = np.array([x_l[0], x_u[0]])
-            best = np.argmax(compare)
+            compare = cp.array([x_l[0], x_u[0]])
+            best = cp.argmax(compare)
 
             # ======== Update ========
             if best == 0:
-                theta = np.copy(theta_lower)
+                theta = cp.copy(theta_lower)
                 x = x + alpha * (beta[index_lower, :] - x)
             else:
-                theta = np.copy(theta_upper)
+                theta = cp.copy(theta_upper)
                 x = x + alpha * (beta[index_upper, :] - x)
         return theta
 
@@ -238,16 +238,16 @@ class MyCTMP:
         """ Does m step: update global variables beta """
 
         # Compute intermediate beta which is denoted as "unit beta"
-        beta = np.zeros((self.num_topics, self.num_words), dtype=float)
+        beta = cp.zeros((self.num_topics, self.num_words), dtype=float)
         for d in range(self.num_docs):
-            beta[:, wordids[d]] += np.outer(self.theta[d], wordcts[d])
+            beta[:, wordids[d]] += cp.outer(self.theta[d], wordcts[d])
         # Check zeros index
         beta_sum = beta.sum(axis=0)
-        ids = np.where(beta_sum != 0)[0]
-        unit_beta = beta[:, ids]
+        ids = cp.where(beta_sum != 0)[0]
+        unit_beta = np.array(beta[:, ids])
         # Normalize the intermediate beta
-        unit_beta_norm = unit_beta.sum(axis=1)
+        unit_beta_norm = np.array(unit_beta.sum(axis=1))
         unit_beta /= unit_beta_norm[:, np.newaxis]
         # Update beta
-        self.beta = np.zeros((self.num_topics, self.num_words), dtype=float)
-        self.beta[:, ids] += unit_beta
+        self.beta = cp.zeros((self.num_topics, self.num_words), dtype=float)
+        self.beta[:, ids] += cp.array(unit_beta)
