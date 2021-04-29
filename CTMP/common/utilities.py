@@ -109,15 +109,9 @@ def write_file(model_folder, list_tops, algo):
     list_tops_file_name = f'{model_folder}/list_tops.txt'
     write_topic_top(list_tops, list_tops_file_name)
     def file_locator(x): return f'{model_folder}/{str(x)}'
-    files = [attr for attr in dir(algo) if attr in ["theta", "mu", "phi", "shp", "rte", "beta"]]
+    files = [attr for attr in dir(algo) if attr in ["mu", "shp", "rte"]]
     for i in files:
-        if i != "phi":
-            np.save(file_locator(i), getattr(algo, i))
-        else:
-            #pass
-            # TODO: uncomment below in final version
-            with open(f"{model_folder}/phi.pkl", "wb") as f:
-                pickle.dump(getattr(algo, i), f, protocol=4)
+        np.save(file_locator(i), getattr(algo, i))
 
 """def get_rating_group(rating_group_file, k_cv):
     skf = StratifiedKFold(n_splits=k_cv, shuffle=True, random_state=42)

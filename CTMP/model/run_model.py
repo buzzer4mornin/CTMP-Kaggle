@@ -40,7 +40,7 @@ def main():
 
     os.chdir("..")
     utilities.write_setting(ddict, file_name)
-    os.chdir("./kkdirrrr/")
+    os.chdir("./kkkdirrrr/")
 
     wordids, wordcts = utilities.read_data(docs_file)
 
@@ -66,10 +66,13 @@ def main():
     print('START!')
 
     for i in range(ddict['iter_train']):
+        s = time.time()
         print(f'\n*** iteration: {i} ***\n')
         time.sleep(4)
         # run single EM step and return attributes
         algo.run_EM(wordids, wordcts, i)
+        e = time.time()
+        print(f"Time spent on {i}th iteration: {e-s} sec")
 
     print('DONE!')
 
