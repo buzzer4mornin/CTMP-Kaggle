@@ -144,7 +144,6 @@ class MyCTMP:
         print("doc time:", d_e-d_s)
         print("avg movie proportion:", a / self.num_docs)
 
-    @jit
     def update_mu(self, norm_mu, d):
         # initiate new mu
         mu = np.empty(self.num_topics)

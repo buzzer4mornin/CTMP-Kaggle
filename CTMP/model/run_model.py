@@ -40,7 +40,7 @@ def main():
 
     os.chdir("..")
     utilities.write_setting(ddict, file_name)
-    os.chdir("./vvvdirrrr/")
+    os.chdir("./mmdirrrr/")
 
     wordids, wordcts = utilities.read_data(docs_file)
 
@@ -70,8 +70,6 @@ def main():
         time.sleep(2)
         # run single EM step and return attributes
         algo.run_EM(wordids, wordcts, i)
-
-
 
     print('DONE!')
 
