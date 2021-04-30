@@ -113,8 +113,8 @@ class MyCTMP:
 
             # compute Φuj then normalize it
             phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :]))
-            phi_uj_sum = phi_uj[0].sum(axis=1)
-            phi_uj_norm = phi_uj / phi_uj_sum[:, np.newaxis]
+            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)
+            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
@@ -124,18 +124,27 @@ class MyCTMP:
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
 
         e = time.time()
-        print("phi time:", e-s)
+        print("user time:", e-s)
 
-        '''# UPDATE theta, mu
-        # norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
+        # UPDATE theta, mu
+        d_s = time.time()
+        a = 0
         for d in range(self.num_docs):
+            ts = time.time()
             thetad = self.update_theta(wordids[d], wordcts[d], d)
             self.theta[d, :] = thetad
+            te = time.time()
 
+            ms = time.time()
             mud = self.update_mu(norm_mu, d)
             self.mu[d, :] = mud
+            me = time.time()
 
-            # print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
+            a += (me-ms) / ((me-ms) + (te - ts))
+        d_e = time.time()
+        print("doc time:", d_e-d_s)
+        print("avg movie proportion:", a / self.num_docs)
+
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
@@ -258,4 +267,3 @@ class MyCTMP:
         # Update beta
         self.beta = cp.zeros((self.num_topics, self.num_words), dtype=float)
         self.beta[:, ids] += cp.array(unit_beta)
-'''
