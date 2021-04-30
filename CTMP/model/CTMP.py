@@ -32,22 +32,22 @@ class MyCTMP:
         self.iter_infer = iter_infer
 
         # Get initial beta(topics) which was produced by LDA
-        self.beta = cp.array(np.load('./CTMP/input-data/CTMP_initial_beta.npy'))
+        self.beta = np.array(np.load('./CTMP/input-data/CTMP_initial_beta.npy'))
 
         # Get initial theta(topic proportions) which was produced by LDA
         # Theta is very sparse, so we decide to use smoothing to avoid having extreme sparse theta,
         # therefore increase other proportions a bit
-        self.theta = cp.array(np.load('./CTMP/input-data/CTMP_initial_theta.npy'))
+        self.theta = np.array(np.load('./CTMP/input-data/CTMP_initial_theta.npy'))
 
         # Initialize mu (topic offsets)
-        self.mu = cp.array(np.copy(self.theta))  # + np.random.normal(0, self.lamb, self.theta.shape)
+        self.mu = np.copy(self.theta)  # + np.random.normal(0, self.lamb, self.theta.shape)
 
         # Initialize phi (rating's variational parameter)
         self.phi = self.get_phi()
 
         # Initialize shp, rte (user's variational parameters)
-        self.shp = cp.ones((self.user_size, self.num_topics)) * self.e
-        self.rte = cp.ones((self.user_size, self.num_topics)) * self.f
+        self.shp = np.ones((self.user_size, self.num_topics)) * self.e
+        self.rte = np.ones((self.user_size, self.num_topics)) * self.f
 
     def get_phi(self):
         """ Click to read description
@@ -59,14 +59,14 @@ class MyCTMP:
         Therefore, we cut the whole 3D matrix into small chunks of 3D matrix and put them into list and set it as our self.phi
         """
 
-        block_2D = cp.zeros(shape=(self.num_docs, self.num_topics))
+        block_2D = np.zeros(shape=(self.num_docs, self.num_topics))
 
         # Initiate matrix
         phi_matrices = list()
 
         # Create small 3D matrices and add them into list
         thousand_block_size = self.user_size // 1000
-        phi = cp.empty(shape=(1000, self.num_docs, self.num_topics), dtype=cp.float32)
+        phi = np.empty(shape=(1000, self.num_docs, self.num_topics), dtype=np.float32)
         for i in range(1000):
             phi[i, :, :] = block_2D
         for i in range(thousand_block_size):
@@ -74,7 +74,7 @@ class MyCTMP:
 
         # Create last remaining 3D matrix and add it into list
         remaining_block_size = self.user_size % 1000
-        phi = cp.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=cp.float32)
+        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=np.float32)
         for i in range(remaining_block_size):
             phi[i, :, :] = block_2D
         phi_matrices.append(phi)
@@ -98,7 +98,7 @@ class MyCTMP:
     def e_step(self, wordids, wordcts):
         """ Does e step. Updates theta, mu, pfi, shp, rte for all documents and users"""
         # Normalization denominator for mu
-        norm_mu = cp.copy((self.shp / self.rte).sum(axis=0))
+        norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
 
         s = time.time()
         # UPDATE phi, shp, rte
@@ -112,9 +112,9 @@ class MyCTMP:
             usr = u % 1000                              # convert user id into interval 0-1000
 
             # compute Φuj then normalize it
-            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + cp.array(special.psi(self.shp[u, :].get())) - cp.log(self.rte[u, :]))
-            phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)
-            phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
+            phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :]))
+            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)
+            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
