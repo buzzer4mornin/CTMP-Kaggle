@@ -109,9 +109,10 @@ class MyCTMP:
                 continue
 
             # compute Φuj then normalize it
-            phi_uj = np.exp(np.log(self.mu[[movies_for_u], :].get()) + special.psi(self.shp[u, :].get()) - np.log(self.rte[u, :].get()))
-            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)
-            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
+            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + cp.array(special.psi(self.shp[u, :].get())) - cp.log(self.rte[u, :]))
+
+            phi_uj_sum = np.copy(phi_uj.get())[0].sum(axis=1)
+            phi_uj_norm = np.copy(phi_uj.get()) / phi_uj_sum[:, np.newaxis]
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
