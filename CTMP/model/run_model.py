@@ -40,7 +40,7 @@ def main():
 
     os.chdir("..")
     utilities.write_setting(ddict, file_name)
-    os.chdir("./wwwdirrrr/")
+    os.chdir("./jdirrrr/")
 
     wordids, wordcts = utilities.read_data(docs_file)
 
