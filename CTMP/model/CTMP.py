@@ -129,20 +129,20 @@ class MyCTMP:
         d_s = time.time()
         a = 0
         for d in range(self.num_docs):
-            ts = time.time()
-            thetad = self.update_theta(wordids[d], wordcts[d], d)
-            self.theta[d, :] = thetad
-            te = time.time()
+            #ts = time.time()
+            #thetad = self.update_theta(wordids[d], wordcts[d], d)
+            #self.theta[d, :] = thetad
+            #te = time.time()
 
-            ms = time.time()
+            #ms = time.time()
             mud = self.update_mu(norm_mu, d)
             self.mu[d, :] = mud
-            me = time.time()
+            #me = time.time()
 
-            a += (me-ms) / ((me-ms) + (te - ts))
+            #a += (me-ms) / ((me-ms) + (te - ts))
         d_e = time.time()
         print("doc time:", d_e-d_s)
-        print("avg movie proportion:", a / self.num_docs)
+        #print("avg movie proportion:", a / self.num_docs)
 
 
     def update_mu(self, norm_mu, d):
