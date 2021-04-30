@@ -122,7 +122,6 @@ class MyCTMP:
             self.shp[u, :] = self.e + phi_uj_norm[0].sum(axis=0)
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
-
         e = time.time()
         print("user time:", e-s)
 
@@ -148,7 +147,7 @@ class MyCTMP:
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
-        mu = cp.empty(self.num_topics)
+        mu = np.empty(self.num_topics)
         mu_users = self.rating_GroupForMovie[d]
 
         def get_phi(x):
@@ -159,12 +158,12 @@ class MyCTMP:
         rating_phi = sum(map(get_phi, mu_users))
 
         if len(mu_users) == 0:
-            mu = cp.copy(self.theta[d, :])
+            mu = np.copy(self.theta[d, :])
         else:
             for k in range(self.num_topics):
                 temp = -1 * norm_mu[k] + self.lamb * self.theta[d, k]
                 delta = temp ** 2 + 4 * self.lamb * rating_phi[k]  # added [k] to rating_phi.
-                mu[k] = (temp + cp.sqrt(delta)) / (2 * self.lamb)
+                mu[k] = (temp + np.sqrt(delta)) / (2 * self.lamb)
             # for k in range(self.num_topics):
             #    mu[k] = rating_phi[k] / norm_mu[k]
         return mu
@@ -191,7 +190,7 @@ class MyCTMP:
         mu = self.mu[d, :]
 
         # x = sum_(k=2)^K theta_k * beta_{kj}
-        x = cp.dot(theta, beta)
+        x = np.dot(theta, beta)
 
         # Parameter of Bernoulli distribution
         # Likelihood vs Prior
@@ -203,50 +202,50 @@ class MyCTMP:
 
         for t in range(1, self.iter_infer):
             # ======== Lower ==========
-            if cp.random.rand() < p:
+            if np.random.rand() < p:
                 T_lower[0] += 1
             else:
                 T_lower[1] += 1
 
-            G_1 = (cp.dot(beta, cts / x) + (self.alpha - 1) / theta) / p
+            G_1 = (np.dot(beta, cts / x) + (self.alpha - 1) / theta) / p
             G_2 = (-1 * self.lamb * (theta - mu)) / (1 - p)
 
             ft_lower = T_lower[0] * G_1 + T_lower[1] * G_2
-            index_lower = cp.argmax(ft_lower)
+            index_lower = np.argmax(ft_lower)
             alpha = 1.0 / (t + 1)
-            theta_lower = cp.copy(theta)
+            theta_lower = np.copy(theta)
             theta_lower *= 1 - alpha
             theta_lower[index_lower] += alpha
 
             # ======== Upper ==========
-            if cp.random.rand() < p:
+            if np.random.rand() < p:
                 T_upper[0] += 1
             else:
                 T_upper[1] += 1
 
             ft_upper = T_upper[0] * G_1 + T_upper[1] * G_2
-            index_upper = cp.argmax(ft_upper)
+            index_upper = np.argmax(ft_upper)
             alpha = 1.0 / (t + 1)
-            theta_upper = cp.copy(theta)
+            theta_upper = np.copy(theta)
             theta_upper *= 1 - alpha
             theta_upper[index_upper] += alpha
             # print(theta_upper - theta_lower)
 
             # ======== Decision ========
-            x_l = cp.dot(cts, cp.log(cp.dot(theta_lower, beta))) + (self.alpha - 1) * cp.log(theta_lower) \
-                  - 1 * (self.lamb / 2) * (cp.linalg.norm((theta_lower - mu), ord=2)) ** 2
-            x_u = cp.dot(cts, cp.log(cp.dot(theta_upper, beta))) + (self.alpha - 1) * cp.log(theta_upper) \
-                  - 1 * (self.lamb / 2) * (cp.linalg.norm((theta_upper - mu), ord=2)) ** 2
+            x_l = np.dot(cts, np.log(np.dot(theta_lower, beta))) + (self.alpha - 1) * np.log(theta_lower) \
+                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_lower - mu), ord=2)) ** 2
+            x_u = np.dot(cts, np.log(np.dot(theta_upper, beta))) + (self.alpha - 1) * np.log(theta_upper) \
+                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_upper - mu), ord=2)) ** 2
 
-            compare = cp.array([x_l[0], x_u[0]])
-            best = cp.argmax(compare)
+            compare = np.array([x_l[0], x_u[0]])
+            best = np.argmax(compare)
 
             # ======== Update ========
             if best == 0:
-                theta = cp.copy(theta_lower)
+                theta = np.copy(theta_lower)
                 x = x + alpha * (beta[index_lower, :] - x)
             else:
-                theta = cp.copy(theta_upper)
+                theta = np.copy(theta_upper)
                 x = x + alpha * (beta[index_upper, :] - x)
         return theta
 
@@ -254,16 +253,16 @@ class MyCTMP:
         """ Does m step: update global variables beta """
 
         # Compute intermediate beta which is denoted as "unit beta"
-        beta = cp.zeros((self.num_topics, self.num_words), dtype=float)
+        beta = np.zeros((self.num_topics, self.num_words), dtype=float)
         for d in range(self.num_docs):
-            beta[:, wordids[d]] += cp.outer(self.theta[d], wordcts[d])
+            beta[:, wordids[d]] += np.outer(self.theta[d], wordcts[d])
         # Check zeros index
         beta_sum = beta.sum(axis=0)
-        ids = cp.where(beta_sum != 0)[0]
+        ids = np.where(beta_sum != 0)[0]
         unit_beta = np.array(beta[:, ids])
         # Normalize the intermediate beta
         unit_beta_norm = np.array(unit_beta.sum(axis=1))
         unit_beta /= unit_beta_norm[:, np.newaxis]
         # Update beta
-        self.beta = cp.zeros((self.num_topics, self.num_words), dtype=float)
-        self.beta[:, ids] += cp.array(unit_beta)
+        self.beta = np.zeros((self.num_topics, self.num_words), dtype=float)
+        self.beta[:, ids] += np.array(unit_beta)
