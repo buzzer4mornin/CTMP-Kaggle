@@ -92,7 +92,7 @@ class MyCTMP:
         # E - expectation step
         self.e_step(wordids, wordcts)
         # M - maximization step
-        self.m_step(wordids, wordcts)
+        # self.m_step(wordids, wordcts)
 
     @jit
     def e_step(self, wordids, wordcts):
