@@ -97,6 +97,7 @@ class MyCTMP:
         # Normalization denominator for mu
         norm_mu = cp.copy((self.shp / self.rte).sum(axis=0))
 
+        s = time.time()
         # UPDATE phi, shp, rte
         for u in range(self.user_size):
             movies_for_u = self.rating_GroupForUser[u]  # list of movie ids liked by user u
@@ -118,6 +119,8 @@ class MyCTMP:
             self.shp[u, :] = self.e + cp.array(phi_uj_norm[0].sum(axis=0))
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
+        e = time.time()
+        print("phi steps:", e-s)
 
         # UPDATE theta, mu
         # norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
