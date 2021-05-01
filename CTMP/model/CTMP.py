@@ -114,8 +114,8 @@ class MyCTMP:
             usr = u % 1000  # convert user id into interval 0-1000
 
             phi_uj = cp.exp(cp.array(special.psi(self.shp[u, :].get())) - cp.log(self.rte[u, :])) #cp.log(self.mu[[movies_for_u], :]) +
-            phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
-            phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
+            phi_uj_sum = phi_uj[0].sum(axis=1)                 # DELETE np.copy and test
+            phi_uj_norm = phi_uj / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
 
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = np.array(phi_uj_norm)
