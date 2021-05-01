@@ -94,17 +94,12 @@ class MyCTMP:
         # Normalization denominator for mu
         norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
 
-        #### np to cp ####
-        self.shp = cp.array(self.shp)
-        self.rte = cp.array(self.rte)
-        self.mu = cp.array(self.mu)
-        #for i in range(len(self.phi)):
-        #    self.phi[i] = cp.array(self.phi[i])
-        ##################
-
         # # --->> UPDATE phi, shp, rte
         s = time.time()
+        mf, pf, rf = 0, 0, 0
         for u in range(self.user_size):
+
+            ms = time.time()
             if len(self.rating_GroupForUser[u]) == 0:
                 # if user didnt like any movie, then dont update anything, continue!
                 continue
@@ -112,46 +107,50 @@ class MyCTMP:
             movies_for_u = cp.array(self.rating_GroupForUser[u])  # list of movie ids liked by user u
             phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
             usr = u % 1000  # convert user id into interval 0-1000
+            me = time.time()
+            mf += (me-ms)
 
-            phi_uj = cp.exp(cp.array(special.psi(self.shp[u, :].get())) - cp.log(self.rte[u, :])) #cp.log(self.mu[[movies_for_u], :]) +
-            phi_uj_sum = phi_uj[0].sum(axis=1)                 # DELETE np.copy and test
-            phi_uj_norm = phi_uj / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
-
+            ps = time.time()
+            phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :])) #
+            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
+            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = np.array(phi_uj_norm)
+            pe = time.time()
+            pf += (pe-ps)
 
+            rs = time.time()
             # update user's shp and rte
             self.shp[u, :] = self.e + phi_uj_norm[0].sum(axis=0)
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
+            re = time.time()
+            rf += (re-rs)
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
         e = time.time()
-        print("users time:", e - s)
-        #### np to cp ####
-        self.shp = self.shp.get()
-        self.rte = self.rte.get()
-        self.mu = self.mu.get()
-        #for i in range(len(self.phi)):
-        #    self.phi[i] = np.array(self.phi[i])
-        ##################
+        print("Total time:", e - s)
+        print(mf / (e-s))
+        print(pf / (e-s))
+        print(rf / (e-s))
+        print("------")
 
-        # --->> UPDATE theta, mu
-        d_s = time.time()
-        a = 0
-        for d in range(self.num_docs):
-            ts = time.time()
-            thetad = self.update_theta(wordids[d], wordcts[d], d)
-            self.theta[d, :] = thetad
-            te = time.time()
-
-            ms = time.time()
-            mud = self.update_mu(norm_mu, d)
-            self.mu[d, :] = mud
-            # print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
-            me = time.time()
-            a += (me - ms) / ((me - ms) + (te - ts))
-        d_e = time.time()
-        print("docs time:", d_e - d_s)
-        print("avg mu proportion on docs time:", a / self.num_docs)
+        # # --->> UPDATE theta, mu
+        # d_s = time.time()
+        # a = 0
+        # for d in range(self.num_docs):
+        #     ts = time.time()
+        #     thetad = self.update_theta(wordids[d], wordcts[d], d)
+        #     self.theta[d, :] = thetad
+        #     te = time.time()
+        #
+        #     ms = time.time()
+        #     mud = self.update_mu(norm_mu, d)
+        #     self.mu[d, :] = mud
+        #     # print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
+        #     me = time.time()
+        #     a += (me - ms) / ((me - ms) + (te - ts))
+        # d_e = time.time()
+        # print("docs time:", d_e - d_s)
+        # print("avg mu proportion on docs time:", a / self.num_docs)
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
