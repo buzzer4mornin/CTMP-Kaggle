@@ -113,7 +113,7 @@ class MyCTMP:
             phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
             usr = u % 1000  # convert user id into interval 0-1000
 
-            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - cp.log(self.rte[u, :]))
+            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) - cp.log(self.rte[u, :])) #+ special.psi(self.shp[u, :])
             phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
             phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
 
