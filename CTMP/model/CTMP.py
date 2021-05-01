@@ -113,9 +113,9 @@ class MyCTMP:
             phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
             usr = u % 1000  # convert user id into interval 0-1000
 
-            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + cp.array(special.psi(self.shp[u, :].get())) - cp.log(self.rte[u, :]))
-            phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)  # DELETE np.copy and test
-            phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]  # DELETE np.copy and test
+            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - cp.log(self.rte[u, :]))
+            phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
+            phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
 
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = np.array(phi_uj_norm)
@@ -127,9 +127,9 @@ class MyCTMP:
         e = time.time()
         print("users time:", e - s)
         #### np to cp ####
-        self.shp = np.array(self.shp)
-        self.rte = np.array(self.rte)
-        self.mu = np.array(self.mu)
+        self.shp = self.shp.get()
+        self.rte = self.rte.get()
+        self.mu = self.mu.get()
         #for i in range(len(self.phi)):
         #    self.phi[i] = np.array(self.phi[i])
         ##################
