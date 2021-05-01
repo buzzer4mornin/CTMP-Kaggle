@@ -1,13 +1,10 @@
-%%cython
-
-import time
-import numpy as np
-from sys import getsizeof
-from scipy import special
 import random
 import cupy as cp
-import numba
-from numba import jit
+import time
+import numpy as np
+from scipy import special
+from numba import njit
+
 
 class MyCTMP:
     def __init__(self, rating_GroupForUser, rating_GroupForMovie,
@@ -32,12 +29,10 @@ class MyCTMP:
         self.iter_infer = iter_infer
 
         # Get initial beta(topics) which was produced by LDA
-        self.beta = np.array(np.load('./CTMP/input-data/CTMP_initial_beta.npy'))
+        self.beta = np.load('./input-data/CTMP_initial_beta.npy')
 
         # Get initial theta(topic proportions) which was produced by LDA
-        # Theta is very sparse, so we decide to use smoothing to avoid having extreme sparse theta,
-        # therefore increase other proportions a bit
-        self.theta = np.array(np.load('./CTMP/input-data/CTMP_initial_theta.npy'))
+        self.theta = np.load('./input-data/CTMP_initial_theta.npy')
 
         # Initialize mu (topic offsets)
         self.mu = np.copy(self.theta)  # + np.random.normal(0, self.lamb, self.theta.shape)
@@ -66,7 +61,7 @@ class MyCTMP:
 
         # Create small 3D matrices and add them into list
         thousand_block_size = self.user_size // 1000
-        phi = np.empty(shape=(1000, self.num_docs, self.num_topics), dtype=np.float32)
+        phi = np.empty(shape=(1000, self.num_docs, self.num_topics))
         for i in range(1000):
             phi[i, :, :] = block_2D
         for i in range(thousand_block_size):
@@ -74,7 +69,7 @@ class MyCTMP:
 
         # Create last remaining 3D matrix and add it into list
         remaining_block_size = self.user_size % 1000
-        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics), dtype=np.float32)
+        phi = np.empty(shape=(remaining_block_size, self.num_docs, self.num_topics))
         for i in range(remaining_block_size):
             phi[i, :, :] = block_2D
         phi_matrices.append(phi)
@@ -99,21 +94,21 @@ class MyCTMP:
         # Normalization denominator for mu
         norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
 
+        # # --->> UPDATE phi, shp, rte
         s = time.time()
-        # UPDATE phi, shp, rte
         for u in range(self.user_size):
             if len(self.rating_GroupForUser[u]) == 0:
                 # if user didnt like any movie, then dont update anything, continue!
                 continue
 
             movies_for_u = self.rating_GroupForUser[u]  # list of movie ids liked by user u
-            phi_block = self.phi[u // 1000]             # access needed 3D matrix of phi list by index
-            usr = u % 1000                              # convert user id into interval 0-1000
+            phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
+            usr = u % 1000  # convert user id into interval 0-1000
 
-            # compute Φuj then normalize it
             phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :]))
-            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)
-            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]
+            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
+            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
+
             # update user's phi in phi_block with newly computed phi_uj_sum
             phi_block[usr, [movies_for_u], :] = phi_uj_norm
 
@@ -122,9 +117,9 @@ class MyCTMP:
             self.rte[u, :] = self.f + self.mu.sum(axis=0)
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
         e = time.time()
-        print("user time:", e-s)
+        print("users time:", e - s)
 
-        # UPDATE theta, mu
+        # --->> UPDATE theta, mu
         d_s = time.time()
         a = 0
         for d in range(self.num_docs):
@@ -136,12 +131,12 @@ class MyCTMP:
             ms = time.time()
             mud = self.update_mu(norm_mu, d)
             self.mu[d, :] = mud
+            # print(f" ** UPDATE theta, mu over {d + 1}/{self.num_docs} documents |iter:{self.GLOB_ITER}| ** ")
             me = time.time()
-
-            a += (me-ms) / ((me-ms) + (te - ts))
+            a += (me - ms) / ((me - ms) + (te - ts))
         d_e = time.time()
-        print("doc time:", d_e-d_s)
-        print("avg movie proportion:", a / self.num_docs)
+        print("docs time:", d_e - d_s)
+        print("avg mu proportion on docs time:", a / self.num_docs)
 
     def update_mu(self, norm_mu, d):
         # initiate new mu
@@ -162,8 +157,48 @@ class MyCTMP:
                 temp = -1 * norm_mu[k] + self.lamb * self.theta[d, k]
                 delta = temp ** 2 + 4 * self.lamb * rating_phi[k]  # added [k] to rating_phi.
                 mu[k] = (temp + np.sqrt(delta)) / (2 * self.lamb)
-
         return mu
+
+    @staticmethod
+    @njit
+    def x_(cts, beta, alpha, lamb, mu, tt):
+        return np.dot(cts, np.log(np.dot(tt, beta))) + (alpha - 1) * np.log(tt) \
+               - 1 * (lamb / 2) * (np.linalg.norm((tt - mu), ord=2)) ** 2
+
+    @staticmethod
+    @njit
+    def t_(cts, beta, theta, mu, x, p, T_lower, T_upper, alpha, lamb, t):
+        # ======== G's ========== 10%
+        G_1 = (np.dot(beta, cts / x) + (alpha - 1) / theta) / p
+        G_2 = (-1 * lamb * (theta - mu)) / (1 - p)
+
+        # ======== Lower ========== 15%
+        if np.random.rand() < p:
+            T_lower[0] += 1
+        else:
+            T_lower[1] += 1
+
+        ft_lower = T_lower[0] * G_1 + T_lower[1] * G_2
+        index_lower = np.argmax(ft_lower)
+        alpha = 1.0 / (t + 1)
+        theta_lower = np.copy(theta)
+        theta_lower *= 1 - alpha
+        theta_lower[index_lower] += alpha
+
+        # ======== Upper ========== 15%
+        if np.random.rand() < p:
+            T_upper[0] += 1
+        else:
+            T_upper[1] += 1
+
+        ft_upper = T_upper[0] * G_1 + T_upper[1] * G_2
+        index_upper = np.argmax(ft_upper)
+        alpha = 1.0 / (t + 1)
+        theta_upper = np.copy(theta)
+        theta_upper *= 1 - alpha
+        theta_upper[index_upper] += alpha
+
+        return theta_lower, theta_upper, index_lower, index_upper, alpha
 
     def update_theta(self, ids, cts, d):
         """ Click to read more
@@ -176,6 +211,8 @@ class MyCTMP:
 
         Returns updated theta.
         """
+
+        cts = cts.astype("float64")
 
         # locate cache memory
         beta = self.beta[:, ids]
@@ -197,53 +234,31 @@ class MyCTMP:
         T_lower = [1, 0]
         T_upper = [0, 1]
 
+        ts = time.time()
         for t in range(1, self.iter_infer):
-            # ======== Lower ==========
-            if np.random.rand() < p:
-                T_lower[0] += 1
-            else:
-                T_lower[1] += 1
+            # ======== G's, Upper, Lower ======== 50%
+            # JITed
+            theta_lower, theta_upper, index_lower, index_upper, alpha = self.t_(cts, beta, theta, mu, x, p, T_lower,
+                                                                                T_upper, self.alpha, self.lamb, t)
 
-            G_1 = (np.dot(beta, cts / x) + (self.alpha - 1) / theta) / p
-            G_2 = (-1 * self.lamb * (theta - mu)) / (1 - p)
-
-            ft_lower = T_lower[0] * G_1 + T_lower[1] * G_2
-            index_lower = np.argmax(ft_lower)
-            alpha = 1.0 / (t + 1)
-            theta_lower = np.copy(theta)
-            theta_lower *= 1 - alpha
-            theta_lower[index_lower] += alpha
-
-            # ======== Upper ==========
-            if np.random.rand() < p:
-                T_upper[0] += 1
-            else:
-                T_upper[1] += 1
-
-            ft_upper = T_upper[0] * G_1 + T_upper[1] * G_2
-            index_upper = np.argmax(ft_upper)
-            alpha = 1.0 / (t + 1)
-            theta_upper = np.copy(theta)
-            theta_upper *= 1 - alpha
-            theta_upper[index_upper] += alpha
-            # print(theta_upper - theta_lower)
-
-            # ======== Decision ========
-            x_l = np.dot(cts, np.log(np.dot(theta_lower, beta))) + (self.alpha - 1) * np.log(theta_lower) \
-                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_lower - mu), ord=2)) ** 2
-            x_u = np.dot(cts, np.log(np.dot(theta_upper, beta))) + (self.alpha - 1) * np.log(theta_upper) \
-                  - 1 * (self.lamb / 2) * (np.linalg.norm((theta_upper - mu), ord=2)) ** 2
+            # ======== Decision ======== 50%
+            # JITed
+            x_l = self.x_(cts, beta, self.alpha, self.lamb, mu, theta_lower)
+            x_u = self.x_(cts, beta, self.alpha, self.lamb, mu, theta_upper)
 
             compare = np.array([x_l[0], x_u[0]])
             best = np.argmax(compare)
 
-            # ======== Update ========
+            # ======== Update ======== 10%
             if best == 0:
                 theta = np.copy(theta_lower)
                 x = x + alpha * (beta[index_lower, :] - x)
             else:
                 theta = np.copy(theta_upper)
                 x = x + alpha * (beta[index_upper, :] - x)
+        te = time.time()
+        # print(te-ts)
+
         return theta
 
     def m_step(self, wordids, wordcts):
@@ -256,10 +271,10 @@ class MyCTMP:
         # Check zeros index
         beta_sum = beta.sum(axis=0)
         ids = np.where(beta_sum != 0)[0]
-        unit_beta = np.array(beta[:, ids])
+        unit_beta = beta[:, ids]
         # Normalize the intermediate beta
-        unit_beta_norm = np.array(unit_beta.sum(axis=1))
+        unit_beta_norm = unit_beta.sum(axis=1)
         unit_beta /= unit_beta_norm[:, np.newaxis]
         # Update beta
         self.beta = np.zeros((self.num_topics, self.num_words), dtype=float)
-        self.beta[:, ids] += np.array(unit_beta)
+        self.beta[:, ids] += unit_beta
