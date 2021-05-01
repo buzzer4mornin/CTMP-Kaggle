@@ -104,7 +104,7 @@ class MyCTMP:
                 # if user didnt like any movie, then dont update anything, continue!
                 continue
 
-            movies_for_u = cp.array(self.rating_GroupForUser[u])  # list of movie ids liked by user u
+            movies_for_u = self.rating_GroupForUser[u]  # list of movie ids liked by user u
             phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
             usr = u % 1000  # convert user id into interval 0-1000
             me = time.time()
