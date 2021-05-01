@@ -1,5 +1,4 @@
 import random
-import cupy as cp
 import time
 import numpy as np
 from scipy import special
@@ -29,10 +28,10 @@ class MyCTMP:
         self.iter_infer = iter_infer
 
         # Get initial beta(topics) which was produced by LDA
-        self.beta = np.load('./input-data/CTMP_initial_beta.npy')
+        self.beta = np.load('./CTMP/input-data/CTMP_initial_beta.npy')
 
         # Get initial theta(topic proportions) which was produced by LDA
-        self.theta = np.load('./input-data/CTMP_initial_theta.npy')
+        self.theta = np.load('./CTMP/input-data/CTMP_initial_theta.npy')
 
         # Initialize mu (topic offsets)
         self.mu = np.copy(self.theta)  # + np.random.normal(0, self.lamb, self.theta.shape)
