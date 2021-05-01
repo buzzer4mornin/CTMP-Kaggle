@@ -3,6 +3,7 @@ import time
 import numpy as np
 from scipy import special
 from numba import njit
+import cupy as cp
 
 
 class MyCTMP:
@@ -93,6 +94,14 @@ class MyCTMP:
         # Normalization denominator for mu
         norm_mu = np.copy((self.shp / self.rte).sum(axis=0))
 
+        #### np to cp ####
+        self.shp = cp.array(self.shp)
+        self.rte = cp.array(self.rte)
+        self.mu = cp.array(self.mu)
+        #for i in range(len(self.phi)):
+        #    self.phi[i] = cp.array(self.phi[i])
+        ##################
+
         # # --->> UPDATE phi, shp, rte
         s = time.time()
         for u in range(self.user_size):
@@ -100,16 +109,16 @@ class MyCTMP:
                 # if user didnt like any movie, then dont update anything, continue!
                 continue
 
-            movies_for_u = self.rating_GroupForUser[u]  # list of movie ids liked by user u
+            movies_for_u = cp.array(self.rating_GroupForUser[u])  # list of movie ids liked by user u
             phi_block = self.phi[u // 1000]  # access needed 3D matrix of phi list by index
             usr = u % 1000  # convert user id into interval 0-1000
 
-            phi_uj = np.exp(np.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - np.log(self.rte[u, :]))
-            phi_uj_sum = np.copy(phi_uj)[0].sum(axis=1)                 # DELETE np.copy and test
-            phi_uj_norm = np.copy(phi_uj) / phi_uj_sum[:, np.newaxis]   # DELETE np.copy and test
+            phi_uj = cp.exp(cp.log(self.mu[[movies_for_u], :]) + special.psi(self.shp[u, :]) - cp.log(self.rte[u, :]))
+            phi_uj_sum = cp.copy(phi_uj)[0].sum(axis=1)  # DELETE np.copy and test
+            phi_uj_norm = cp.copy(phi_uj) / phi_uj_sum[:, np.newaxis]  # DELETE np.copy and test
 
             # update user's phi in phi_block with newly computed phi_uj_sum
-            phi_block[usr, [movies_for_u], :] = phi_uj_norm
+            phi_block[usr, [movies_for_u], :] = np.array(phi_uj_norm)
 
             # update user's shp and rte
             self.shp[u, :] = self.e + phi_uj_norm[0].sum(axis=0)
@@ -117,6 +126,13 @@ class MyCTMP:
             # print(f" ** UPDATE phi, shp, rte over {u + 1}/{self.user_size} users |iter:{self.GLOB_ITER}| ** ")
         e = time.time()
         print("users time:", e - s)
+        #### np to cp ####
+        self.shp = np.array(self.shp)
+        self.rte = np.array(self.rte)
+        self.mu = np.array(self.mu)
+        #for i in range(len(self.phi)):
+        #    self.phi[i] = np.array(self.phi[i])
+        ##################
 
         # --->> UPDATE theta, mu
         d_s = time.time()
