@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+%%cython
 
 import time
 import numpy as np
@@ -94,7 +94,6 @@ class MyCTMP:
         # M - maximization step
         self.m_step(wordids, wordcts)
 
-    @jit
     def e_step(self, wordids, wordcts):
         """ Does e step. Updates theta, mu, pfi, shp, rte for all documents and users"""
         # Normalization denominator for mu
@@ -163,11 +162,9 @@ class MyCTMP:
                 temp = -1 * norm_mu[k] + self.lamb * self.theta[d, k]
                 delta = temp ** 2 + 4 * self.lamb * rating_phi[k]  # added [k] to rating_phi.
                 mu[k] = (temp + np.sqrt(delta)) / (2 * self.lamb)
-            # for k in range(self.num_topics):
-            #    mu[k] = rating_phi[k] / norm_mu[k]
+
         return mu
 
-    @jit
     def update_theta(self, ids, cts, d):
         """ Click to read more
 
