@@ -3,16 +3,25 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from math import floor
+from numba import njit, jit
+from scipy.linalg import get_blas_funcs
+from itertools import starmap
+from operator import mul
+import tables
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--test_size", default=200, type=int, help="Size of test set")
+parser.add_argument("--test_size", default=2000, type=int, help="Size of test set")
 parser.add_argument("--cv", default=5, type=int, help="Cross-validate with given number of folds")
 parser.add_argument("--TOP_M_start", default=10, type=int, help="Start of Top-M recommendation")
-parser.add_argument("--TOP_M_end", default=100, type=int, help="End of Top-M recommendation")
-parser.add_argument("--pred_type", default='out-of-matrix', type=str, help="Type of prediction - ['in-matrix', 'out-of-matrix', 'both']")
-parser.add_argument("--test_proportion", default=0.2, type=float, help="How much proportion of the data to be used for testing the model")
+parser.add_argument("--TOP_M_end", default=50, type=int, help="End of Top-M recommendation")
+parser.add_argument("--pred_type", default='in-matrix', type=str,
+                    help="Type of prediction - ['in-matrix', 'out-of-matrix', 'both']")
+parser.add_argument("--test_proportion", default=0.2, type=float,
+                    help="How much proportion of the data to be used for testing the model")
 parser.add_argument("--seed", default=42, type=int, help="Random seed.")
-parser.add_argument("--folder", default="0.3-100", type=str, help="Folder to take saved outputs from")
+parser.add_argument("--folder", default="input-data", type=str, help="Folder to take saved outputs from")
+
 
 class Evaluation:
     def __init__(self, args):
@@ -20,10 +29,10 @@ class Evaluation:
         np.random.seed(args.seed)
 
         # Read data
-        with open(f"../{args.folder}/rating_GroupForUser.pkl", "rb") as f:
+        with open(f"../{args.folder}/rating_GroupForUser_train.pkl", "rb") as f:
             self.rating_GroupForUser = pickle.load(f)
 
-        with open(f"../{args.folder}/rating_GroupForMovie.pkl", "rb") as f:
+        with open(f"../{args.folder}/rating_GroupForMovie_train.pkl", "rb") as f:
             self.rating_GroupForMovie = pickle.load(f)
 
         # self.ratings = np.load("../saved-outputs/df_rating", allow_pickle=True)
@@ -95,15 +104,41 @@ class Evaluation:
                 break
         return test_set
 
-    def predict_in_matrix(self, user_id, top_m) -> None:
+    @staticmethod
+    # @njit
+    def dot(s, r, mu):
+        m = np.true_divide(s, r)
+        n = np.transpose(mu)
+        ratings = np.dot(m, n)
+        # -----
+        # gemm = get_blas_funcs("gemm", [z, k])
+        # ratings = gemm(1, z, k)
+        # -----
+        # ratings = np.dot(np.true_divide(s, r), np.transpose(mu))
+        # -----
+        # ratings = sum(starmap(mul, zip(m, n)))
+        # -----
+        # ratings = np.ones(shape=(25900,))
+        sorted_ratings = np.argsort(-ratings)
+        return sorted_ratings
+
+    def predict_in_matrix(self, user_id, top_m, cold_items, x, rating_GroupForUser):
         """Compute in-matrix recall and precision for a given user, then add them to the sum"""
-        ratings = np.dot((self.shp[user_id] / self.rte[user_id]), self.mu.T)
+        actual = rating_GroupForUser[user_id]
+        sorted_ratings = np.argsort(-x)
+        predicted_top_M = np.setdiff1d(sorted_ratings, cold_items, assume_unique=True)[:top_m]
+        top_m_correct = np.sum(np.in1d(predicted_top_M, actual) * 1)
+        return (top_m_correct / len(rating_GroupForUser[user_id])), (top_m_correct / top_m)
+
+    def predict_in_matrix_or(self, user_id, top_m, cold_items, shp, rte, mu, rating_GroupForUser):
+        """Compute in-matrix recall and precision for a given user, then add them to the sum"""
+        ratings = np.dot((shp / rte), mu.T)
         actual = self.rating_GroupForUser[user_id]
         sorted_ratings = np.argsort(-ratings)
-        predicted_top_M = np.setdiff1d(sorted_ratings, self.cold_items, assume_unique=True)[:top_m]
+        predicted_top_M = np.setdiff1d(sorted_ratings, cold_items, assume_unique=True)[:top_m]
         top_m_correct = np.sum(np.in1d(predicted_top_M, actual) * 1)
-        self.recalls_in_matrix += (top_m_correct / len(self.rating_GroupForUser[user_id]))
-        self.precisions_in_matrix += (top_m_correct / top_m)
+        return (top_m_correct / len(rating_GroupForUser[user_id])), (top_m_correct / top_m)
+
 
     def predict_out_of_matrix(self, user_id, top_m) -> None:
         """Compute out-of-matrix recall and precision for a given user, then add them to the sum"""
@@ -130,10 +165,24 @@ class Evaluation:
                 self.avg_recalls_out_of_matrix.append(self.recalls_out_of_matrix / args.test_size)
                 self.avg_precisions_out_of_matrix.append(self.precisions_out_of_matrix / args.test_size)
             elif args.pred_type == "in-matrix":
-                for usr in self.test_set:
-                    self.predict_in_matrix(usr, top)
+                self.test_set = sorted(self.test_set)
+
+                # 420-430
+                whole = np.dot(np.true_divide(self.shp[self.test_set], self.rte[self.test_set]), np.transpose(self.mu))
+                for i in range(len(self.test_set)):
+                   r1, r2 = self.predict_in_matrix(self.test_set[i], top, self.cold_items, whole[i], self.rating_GroupForUser)
+                   self.recalls_in_matrix += r1
+                   self.precisions_in_matrix += r2
+
+                # 520-570
+                # for usr in self.test_set:
+                #     r1, r2 = self.predict_in_matrix_or(usr, top, self.cold_items, self.shp[usr], self.rte[usr], self.mu, self.rating_GroupForUser)
+                #     self.recalls_in_matrix += r1
+                #     self.precisions_in_matrix += r2
+
                 self.avg_recalls_in_matrix.append(self.recalls_in_matrix / args.test_size)
                 self.avg_precisions_in_matrix.append(self.precisions_in_matrix / args.test_size)
+
             elif args.pred_type == "out-of-matrix":
                 for usr in self.test_set:
                     self.predict_out_of_matrix(usr, top)
@@ -181,7 +230,12 @@ class Evaluation:
 if __name__ == '__main__':
     args = parser.parse_args([] if "__file__" not in globals() else None)
     assert args.pred_type in ['in-matrix', 'out-of-matrix', 'both']
+    import time
+
+    s = time.time()
     e = Evaluation(args)
+    e = time.time()
+    print(e - s)
     e.plot()
 
 # =========== Saved Results ==============
